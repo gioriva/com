@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gioriva.com</title>
+  <meta name="description" content="gioriva.com">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='16' fill='%23060810'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%237c8cff' stroke-width='2.5'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: #060810;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      color: rgba(255, 255, 255, 0.92);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* grana sottile sopra il canvas */
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.5;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+    }
+
+    .ui {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .wordmark {
+      font-size: clamp(15px, 1.8vw, 19px);
+      font-weight: 500;
+      letter-spacing: 0.42em;
+      text-indent: 0.42em; /* compensa l'ultima lettera */
+      text-transform: lowercase;
+      opacity: 0;
+      animation: fade 2.2s ease 0.6s forwards;
+      text-shadow: 0 0 24px rgba(0, 0, 0, 0.45);
+    }
+
+    @keyframes fade { to { opacity: 1; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .wordmark { animation: none; opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="c" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="ui">
+    <span class="wordmark">gioriva.com</span>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let W, H, DPR;
+    function resize() {
+      DPR = Math.min(devicePixelRatio || 1, 2);
+      W = canvas.width = innerWidth * DPR;
+      H = canvas.height = innerHeight * DPR;
+    }
+    resize();
+    addEventListener('resize', resize);
+
+    // sfere di luce che orbitano lentamente
+    const hues = [
+      { h: 232, s: 90, l: 62 },  // indaco
+      { h: 190, s: 85, l: 55 },  // ciano
+      { h: 268, s: 70, l: 58 },  // viola
+      { h: 340, s: 75, l: 60 },  // rosa
+    ];
+
+    const blobs = hues.map((c, i) => ({
+      c,
+      a: Math.random() * Math.PI * 2,       // fase orbita
+      sp: 0.00006 + Math.random() * 0.00007, // velocità
+      rx: 0.10 + Math.random() * 0.10,      // raggio orbita x (relativo)
+      ry: 0.08 + Math.random() * 0.10,      // raggio orbita y
+      r: 0.42 + Math.random() * 0.14,       // raggio blob (relativo al lato corto)
+      off: i * 1.7
+    }));
+
+    // il puntatore attira dolcemente il centro della scena
+    const target = { x: 0.5, y: 0.5 };
+    const center = { x: 0.5, y: 0.5 };
+    addEventListener('pointermove', e => {
+      target.x = 0.5 + (e.clientX / innerWidth - 0.5) * 0.12;
+      target.y = 0.5 + (e.clientY / innerHeight - 0.5) * 0.12;
+    });
+
+    function frame(t) {
+      center.x += (target.x - center.x) * 0.02;
+      center.y += (target.y - center.y) * 0.02;
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#060810';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.globalCompositeOperation = 'lighter';
+      const S = Math.min(W, H);
+
+      for (const b of blobs) {
+        const ang = b.a + t * b.sp + b.off;
+        const x = (center.x + Math.cos(ang) * b.rx) * W;
+        const y = (center.y + Math.sin(ang * 0.9) * b.ry) * H;
+        const r = b.r * S;
+
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        const { h, s, l } = b.c;
+        g.addColorStop(0, `hsla(${h}, ${s}%, ${l}%, 0.55)`);
+        g.addColorStop(0.5, `hsla(${h}, ${s}%, ${l * 0.8}%, 0.18)`);
+        g.addColorStop(1, 'hsla(0, 0%, 0%, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (!reduced) requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+    if (reduced) frame(40000); // un solo fotogramma statico ma composto
+  </script>
+
+</body>
+</html>
