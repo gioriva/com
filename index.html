@@ -6,6 +6,22 @@
   <title>gioriva.com</title>
   <meta name="description" content="gioriva.com">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23070a0f'/%3E%3Cpath d='M8 20 Q12 12 16 16 T24 12' fill='none' stroke='%236fb7ff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <!-- Google Analytics 4 con Consent Mode v2: nessun cookie finché non c'è consenso -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'analytics_storage': 'denied',
+      'ad_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied'
+    });
+  </script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-1ZCCJ6QBR4"></script>
+  <script>
+    gtag('js', new Date());
+    gtag('config', 'G-1ZCCJ6QBR4', { 'anonymize_ip': true });
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -151,20 +167,24 @@
     const ctx = canvas.getContext('2d');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    let W, H, DPR, COLS, ROWS;
+    let W, H, DPR, COLS, ROWS, XR;
     function resize() {
-      DPR = Math.min(devicePixelRatio || 1, 2);
-      W = canvas.width = innerWidth * DPR;
-      H = canvas.height = innerHeight * DPR;
+      const mobile = innerWidth < 600;
+      DPR = Math.min(devicePixelRatio || 1, mobile ? 1.5 : 2);
+      W = canvas.width = Math.round(innerWidth * DPR);
+      H = canvas.height = Math.round(innerHeight * DPR);
       // densità della griglia in base alla larghezza
-      COLS = innerWidth < 600 ? 170 : 200;
-      ROWS = 80;
+      COLS = mobile ? 110 : 200;
+      ROWS = mobile ? 60 : 80;
+      // larghezza del piano in scena: su schermi stretti si restringe, così i punti restano fitti
+      XR = 20 * Math.max(0.4, Math.min(1, (innerWidth / innerHeight) / 1.6));
     }
     resize();
     addEventListener('resize', resize);
 
     // camera fissa, leggermente dall'alto
     const cam = { y: 0.6, f: 1.6 };
+    const AMP = matchMedia('(hover: none)').matches ? 1.35 : 1; // su touch onda più visibile
     const K = () => cam.f * H * 0.62;      // fattore di proiezione
     const pointer = { x: 0, z: 0, s: 0 }; // punto in scena e forza del ripple
     let ripple = 0;
@@ -179,6 +199,15 @@
     }
     addEventListener('pointermove', e => toScene(e.clientX, e.clientY), { passive: true });
     addEventListener('pointerdown', e => { toScene(e.clientX, e.clientY); ripple = 1; }, { passive: true });
+
+    // colori precalcolati (16 livelli di alpha per ciascuna tinta)
+    const LEVELS = 16;
+    const PAL_INK = [], PAL_ACC = [];
+    for (let i = 0; i < LEVELS; i++) {
+      const a = (i + 1) / LEVELS;
+      PAL_INK.push(`rgba(219,228,240,${a.toFixed(3)})`);
+      PAL_ACC.push(`rgba(111,183,255,${a.toFixed(3)})`);
+    }
 
     const clock = document.getElementById('clock');
     // cronometro di missione: parte al caricamento della pagina
@@ -196,10 +225,9 @@
     let lastT = 0, frames = 0, fpsT = 0;
 
     function frame(t) {
-      const dt = t - lastT; lastT = t;
+      const dt = Math.min(100, t - lastT); lastT = t;
       frames++; fpsT += dt;
       if (fpsT > 1000) { fpsEl.textContent = frames; frames = 0; fpsT = 0; }
-      if (t % 1000 < dt + 1) clock.textContent = fmt.format(new Date());
 
       pointer.s *= 0.97;
       ripple *= 0.985;
@@ -214,10 +242,10 @@
       for (let r = ROWS - 1; r >= 0; r--) {
         const z = 1.0 + (r / ROWS) * 9;                // profondità 1 .. 10
         for (let c = 0; c < COLS; c++) {
-          const x = ((c / (COLS - 1)) - 0.5) * 20;   // larghezza -10 .. 10
+          const x = ((c / (COLS - 1)) - 0.5) * XR;   // larghezza -XR/2 .. XR/2
 
           // superficie: due onde incrociate + un'increspatura dal cursore
-          const amp = 0.95 - (r / ROWS) * 0.6;       // il fondo si calma, così non si aggroviglia
+          const amp = (0.95 - (r / ROWS) * 0.6) * AMP; // il fondo si calma, così non si aggroviglia
           let y = (Math.sin(x * 0.32 + time * 1.4) * 0.16
                 + Math.sin(z * 0.55 - time * 1.1) * 0.14
                 + Math.sin((x + z) * 0.22 + time * 0.7) * 0.10) * amp;
@@ -241,9 +269,9 @@
           const a = (0.12 + depth * 0.45 + lift * 0.6) * far;
           const size = (0.6 + depth * 1.2 + lift * 1.0) * DPR;
 
-          ctx.fillStyle = lift > 0.5
-            ? `rgba(111, 183, 255, ${Math.min(1, a)})`
-            : `rgba(219, 228, 240, ${Math.min(1, a)})`;
+          if (a < 0.04) continue;
+          const idx = Math.min(LEVELS - 1, (a * LEVELS) | 0);
+          ctx.fillStyle = lift > 0.5 ? PAL_ACC[idx] : PAL_INK[idx];
           ctx.fillRect(sx - size / 2, sy - size / 2, size, size);
         }
       }
@@ -252,6 +280,7 @@
     }
 
     clock.textContent = fmt.format(new Date());
+    setInterval(() => { clock.textContent = fmt.format(new Date()); }, 1000);
     requestAnimationFrame(frame);
     if (reduced) frame(30000);
   </script>
