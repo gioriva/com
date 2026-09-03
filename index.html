@@ -5,22 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>gioriva.com</title>
   <meta name="description" content="gioriva.com">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='16' fill='%23060810'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%237c8cff' stroke-width='2.5'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23070a0f'/%3E%3Cpath d='M8 20 Q12 12 16 16 T24 12' fill='none' stroke='%236fb7ff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      overflow: hidden;
+    :root {
+      --bg: #070a0f;
+      --ink: #dbe4f0;
+      --dim: rgba(219, 228, 240, 0.42);
+      --accent: #6fb7ff;
     }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; overflow: hidden; }
+
     body {
-      background: #060810;
-      font-family: "Space Grotesk", system-ui, sans-serif;
-      color: rgba(255, 255, 255, 0.92);
+      background: var(--bg);
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      color: var(--ink);
       -webkit-font-smoothing: antialiased;
     }
 
@@ -32,50 +36,114 @@
       display: block;
     }
 
-    /* grana sottile sopra il canvas */
-    .grain {
+    /* vignetta: scurisce i bordi e fa emergere il centro */
+    .vignette {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      opacity: 0.5;
-      mix-blend-mode: overlay;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+      background:
+        radial-gradient(ellipse 75% 70% at 50% 62%, transparent 45%, rgba(7, 10, 15, 0.92) 100%);
     }
 
-    .ui {
+    .hud {
+      position: fixed;
+      inset: clamp(18px, 2.6vw, 34px);
+      pointer-events: none;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--dim);
+      opacity: 0;
+      animation: fade 1.6s ease 0.4s forwards;
+    }
+
+    .hud > div {
+      position: absolute;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .tl { top: 0; left: 0; }
+    .tr { top: 0; right: 0; }
+    .bl { bottom: 0; left: 0; }
+    .br { bottom: 0; right: 0; }
+
+    .hud b { font-weight: 500; color: var(--ink); }
+    .hud i { font-style: normal; color: var(--accent); }
+
+    /* angoli sottili, da mirino */
+    .hud::before, .hud::after,
+    .hud > span::before, .hud > span::after {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-color: rgba(219, 228, 240, 0.22);
+      border-style: solid;
+      border-width: 0;
+    }
+    .hud::before { top: -6px; left: -6px; border-top-width: 1px; border-left-width: 1px; }
+    .hud::after { top: -6px; right: -6px; border-top-width: 1px; border-right-width: 1px; }
+    .hud > span::before { bottom: -6px; left: -6px; border-bottom-width: 1px; border-left-width: 1px; }
+    .hud > span::after { bottom: -6px; right: -6px; border-bottom-width: 1px; border-right-width: 1px; }
+
+    .center {
       position: fixed;
       inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       pointer-events: none;
+      transform: translateY(-14vh);
     }
 
     .wordmark {
-      font-size: clamp(15px, 1.8vw, 19px);
+      font-size: clamp(14px, 1.7vw, 18px);
       font-weight: 500;
-      letter-spacing: 0.42em;
-      text-indent: 0.42em; /* compensa l'ultima lettera */
-      text-transform: lowercase;
+      letter-spacing: 0.5em;
+      text-indent: 0.5em;
+      color: var(--ink);
       opacity: 0;
-      animation: fade 2.2s ease 0.6s forwards;
-      text-shadow: 0 0 24px rgba(0, 0, 0, 0.45);
+      animation: fade 2s ease 0.8s forwards;
+    }
+
+    .wordmark::after {
+      content: "_";
+      color: var(--accent);
+      animation: blink 1.1s steps(2, start) infinite;
     }
 
     @keyframes fade { to { opacity: 1; } }
+    @keyframes blink { to { visibility: hidden; } }
+
+    @media (max-width: 600px) {
+      .hud { font-size: 10px; }
+      .tr, .br { text-align: right; }
+    }
 
     @media (prefers-reduced-motion: reduce) {
-      .wordmark { animation: none; opacity: 1; }
+      .hud, .wordmark { animation: none; opacity: 1; }
+      .wordmark::after { animation: none; }
     }
   </style>
 </head>
 <body>
 
   <canvas id="c" aria-hidden="true"></canvas>
-  <div class="grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
 
-  <div class="ui">
+  <div class="center">
     <span class="wordmark">gioriva.com</span>
+  </div>
+
+  <div class="hud" aria-hidden="true">
+    <span></span>
+    <div class="tl"><b id="uptime">00:00:00</b></div>
+    <div class="tr">45.8081° N <b>·</b> 9.0852° E</div>
+    <div class="bl">Como, IT <b>·</b> <span id="clock">--:--:--</span></div>
+    <div class="br"><span id="fps">60</span> fps <b>·</b> 2026</div>
   </div>
 
   <script>
@@ -83,74 +151,109 @@
     const ctx = canvas.getContext('2d');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    let W, H, DPR;
+    let W, H, DPR, COLS, ROWS;
     function resize() {
       DPR = Math.min(devicePixelRatio || 1, 2);
       W = canvas.width = innerWidth * DPR;
       H = canvas.height = innerHeight * DPR;
+      // densità della griglia in base alla larghezza
+      COLS = innerWidth < 600 ? 170 : 200;
+      ROWS = 80;
     }
     resize();
     addEventListener('resize', resize);
 
-    // sfere di luce che orbitano lentamente
-    const hues = [
-      { h: 232, s: 90, l: 62 },  // indaco
-      { h: 190, s: 85, l: 55 },  // ciano
-      { h: 268, s: 70, l: 58 },  // viola
-      { h: 340, s: 75, l: 60 },  // rosa
-    ];
+    // camera fissa, leggermente dall'alto
+    const cam = { y: 0.6, f: 1.6 };
+    const K = () => cam.f * H * 0.62;      // fattore di proiezione
+    const pointer = { x: 0, z: 0, s: 0 }; // punto in scena e forza del ripple
+    let ripple = 0;
 
-    const blobs = hues.map((c, i) => ({
-      c,
-      a: Math.random() * Math.PI * 2,       // fase orbita
-      sp: 0.00006 + Math.random() * 0.00007, // velocità
-      rx: 0.10 + Math.random() * 0.10,      // raggio orbita x (relativo)
-      ry: 0.08 + Math.random() * 0.10,      // raggio orbita y
-      r: 0.42 + Math.random() * 0.14,       // raggio blob (relativo al lato corto)
-      off: i * 1.7
-    }));
+    function toScene(clientX, clientY) {
+      // proiezione inversa approssimata del cursore sul piano y=0
+      const off = Math.max(0.02, clientY / innerHeight - 0.5);
+      const pz = Math.min(10.4, cam.y * cam.f * 0.62 / off);
+      pointer.z = pz - 0.4;
+      pointer.x = (clientX - innerWidth / 2) * pz / (cam.f * 0.62 * innerHeight);
+      pointer.s = 1;
+    }
+    addEventListener('pointermove', e => toScene(e.clientX, e.clientY), { passive: true });
+    addEventListener('pointerdown', e => { toScene(e.clientX, e.clientY); ripple = 1; }, { passive: true });
 
-    // il puntatore attira dolcemente il centro della scena
-    const target = { x: 0.5, y: 0.5 };
-    const center = { x: 0.5, y: 0.5 };
-    addEventListener('pointermove', e => {
-      target.x = 0.5 + (e.clientX / innerWidth - 0.5) * 0.12;
-      target.y = 0.5 + (e.clientY / innerHeight - 0.5) * 0.12;
+    const clock = document.getElementById('clock');
+    // cronometro di missione: parte al caricamento della pagina
+    const uptimeEl = document.getElementById('uptime');
+    const t0 = Date.now();
+    const pad = n => String(n).padStart(2, '0');
+    setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      uptimeEl.textContent = `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+    }, 1000);
+    const fpsEl = document.getElementById('fps');
+    const fmt = new Intl.DateTimeFormat('it-IT', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Rome'
     });
+    let lastT = 0, frames = 0, fpsT = 0;
 
     function frame(t) {
-      center.x += (target.x - center.x) * 0.02;
-      center.y += (target.y - center.y) * 0.02;
+      const dt = t - lastT; lastT = t;
+      frames++; fpsT += dt;
+      if (fpsT > 1000) { fpsEl.textContent = frames; frames = 0; fpsT = 0; }
+      if (t % 1000 < dt + 1) clock.textContent = fmt.format(new Date());
 
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = '#060810';
+      pointer.s *= 0.97;
+      ripple *= 0.985;
+
+      ctx.fillStyle = '#070a0f';
       ctx.fillRect(0, 0, W, H);
 
-      ctx.globalCompositeOperation = 'lighter';
-      const S = Math.min(W, H);
+      const time = t * 0.00035;
+      const cx = W / 2, cy = H / 2;
 
-      for (const b of blobs) {
-        const ang = b.a + t * b.sp + b.off;
-        const x = (center.x + Math.cos(ang) * b.rx) * W;
-        const y = (center.y + Math.sin(ang * 0.9) * b.ry) * H;
-        const r = b.r * S;
+      // disegno dal fondo verso il davanti
+      for (let r = ROWS - 1; r >= 0; r--) {
+        const z = 1.0 + (r / ROWS) * 9;                // profondità 1 .. 10
+        for (let c = 0; c < COLS; c++) {
+          const x = ((c / (COLS - 1)) - 0.5) * 20;   // larghezza -10 .. 10
 
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        const { h, s, l } = b.c;
-        g.addColorStop(0, `hsla(${h}, ${s}%, ${l}%, 0.55)`);
-        g.addColorStop(0.5, `hsla(${h}, ${s}%, ${l * 0.8}%, 0.18)`);
-        g.addColorStop(1, 'hsla(0, 0%, 0%, 0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
+          // superficie: due onde incrociate + un'increspatura dal cursore
+          const amp = 0.95 - (r / ROWS) * 0.6;       // il fondo si calma, così non si aggroviglia
+          let y = (Math.sin(x * 0.32 + time * 1.4) * 0.16
+                + Math.sin(z * 0.55 - time * 1.1) * 0.14
+                + Math.sin((x + z) * 0.22 + time * 0.7) * 0.10) * amp;
+
+          const dx = x - pointer.x, dz = z - pointer.z;
+          const d = Math.sqrt(dx * dx + dz * dz);
+          y += Math.exp(-d * d * 1.6) * 0.35 * pointer.s;
+          y += Math.sin(d * 6 - t * 0.008) * Math.exp(-d * 0.9) * 0.12 * ripple;
+
+          // proiezione prospettica
+          const pz = z + 0.4;                    // distanza dalla camera
+          const py = y - cam.y;
+          const sx = cx + (x / pz) * K();
+          const sy = cy - (py / pz) * K();
+
+          if (sy < -10 || sy > H + 10 || sx < -10 || sx > W + 10) continue;
+
+          const depth = 1 - r / ROWS;                       // 1 vicino, 0 lontano
+          const lift = Math.max(0, y + 0.25);               // le creste brillano
+          const far = Math.min(1, (1 - r / ROWS) * 4);  // dissolvenza sull'orizzonte
+          const a = (0.12 + depth * 0.45 + lift * 0.6) * far;
+          const size = (0.6 + depth * 1.2 + lift * 1.0) * DPR;
+
+          ctx.fillStyle = lift > 0.5
+            ? `rgba(111, 183, 255, ${Math.min(1, a)})`
+            : `rgba(219, 228, 240, ${Math.min(1, a)})`;
+          ctx.fillRect(sx - size / 2, sy - size / 2, size, size);
+        }
       }
 
       if (!reduced) requestAnimationFrame(frame);
     }
 
+    clock.textContent = fmt.format(new Date());
     requestAnimationFrame(frame);
-    if (reduced) frame(40000); // un solo fotogramma statico ma composto
+    if (reduced) frame(30000);
   </script>
 
 </body>
