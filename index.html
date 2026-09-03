@@ -166,6 +166,7 @@
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const SPEED = reduced ? 0.5 : 1;   // con "riduci movimento" l'onda rallenta ma non si ferma
 
     let W, H, DPR, COLS, ROWS, XR;
     function resize() {
@@ -184,7 +185,9 @@
 
     // camera fissa, leggermente dall'alto
     const cam = { y: 0.6, f: 1.6 };
-    const AMP = matchMedia('(hover: none)').matches ? 1.35 : 1; // su touch onda più visibile
+    const TOUCH = matchMedia('(hover: none)').matches;
+    const AMP = TOUCH ? 1.35 : 1;      // su touch onda più visibile
+    let lastTouch = -1e9;              // ultimo tocco reale
     const K = () => cam.f * H * 0.62;      // fattore di proiezione
     const pointer = { x: 0, z: 0, s: 0 }; // punto in scena e forza del ripple
     let ripple = 0;
@@ -197,8 +200,18 @@
       pointer.x = (clientX - innerWidth / 2) * pz / (cam.f * 0.62 * innerHeight);
       pointer.s = 1;
     }
-    addEventListener('pointermove', e => toScene(e.clientX, e.clientY), { passive: true });
-    addEventListener('pointerdown', e => { toScene(e.clientX, e.clientY); ripple = 1; }, { passive: true });
+    addEventListener('pointermove', e => { toScene(e.clientX, e.clientY); lastTouch = performance.now(); }, { passive: true });
+    addEventListener('pointerdown', e => { toScene(e.clientX, e.clientY); ripple = 1; lastTouch = performance.now(); }, { passive: true });
+
+    // senza mouse (o dopo 3 s senza tocchi) un punto di pressione vaga da solo sul piano
+    function autoPointer(t) {
+      if (!TOUCH || t - lastTouch < 3000) return;
+      const k = t * 0.00022 * SPEED;
+      pointer.x = Math.sin(k * 1.3) * (XR * 0.28);
+      pointer.z = 2.6 + (Math.sin(k * 0.9 + 1.7) * 0.5 + 0.5) * 3.5;
+      pointer.s += (0.9 - pointer.s) * 0.02;
+      if (Math.sin(k * 0.45) > 0.995 && ripple < 0.05) ripple = 1;
+    }
 
     // colori precalcolati (16 livelli di alpha per ciascuna tinta)
     const LEVELS = 16;
@@ -229,13 +242,14 @@
       frames++; fpsT += dt;
       if (fpsT > 1000) { fpsEl.textContent = frames; frames = 0; fpsT = 0; }
 
-      pointer.s *= 0.97;
+      autoPointer(t);
+      if (!TOUCH || t - lastTouch < 3000) pointer.s *= 0.97;
       ripple *= 0.985;
 
       ctx.fillStyle = '#070a0f';
       ctx.fillRect(0, 0, W, H);
 
-      const time = t * 0.00035;
+      const time = t * 0.00035 * SPEED;
       const cx = W / 2, cy = H / 2;
 
       // disegno dal fondo verso il davanti
@@ -276,13 +290,12 @@
         }
       }
 
-      if (!reduced) requestAnimationFrame(frame);
+      requestAnimationFrame(frame);
     }
 
     clock.textContent = fmt.format(new Date());
     setInterval(() => { clock.textContent = fmt.format(new Date()); }, 1000);
     requestAnimationFrame(frame);
-    if (reduced) frame(30000);
   </script>
 
 </body>
