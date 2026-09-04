@@ -63,47 +63,19 @@
 
     .hud {
       position: fixed;
-      inset: clamp(18px, 2.6vw, 34px);
+      left: 0;
+      right: 0;
+      bottom: clamp(18px, 3vh, 30px);
+      text-align: center;
       pointer-events: none;
       font-size: 11px;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--dim);
       opacity: 0;
-      animation: fade 1.6s ease 0.4s forwards;
+      animation: fade 1.8s ease 1s forwards;
     }
-
-    .hud > div {
-      position: absolute;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      white-space: nowrap;
-    }
-
-    .tl { top: 0; left: 0; }
-    .tr { top: 0; right: 0; }
-    .bl { bottom: 0; left: 0; }
-    .br { bottom: 0; right: 0; }
-
-    .hud b { font-weight: 500; color: var(--ink); }
-    .hud i { font-style: normal; color: var(--accent); }
-
-    /* angoli sottili, da mirino */
-    .hud::before, .hud::after,
-    .hud > span::before, .hud > span::after {
-      content: "";
-      position: absolute;
-      width: 14px;
-      height: 14px;
-      border-color: rgba(219, 228, 240, 0.22);
-      border-style: solid;
-      border-width: 0;
-    }
-    .hud::before { top: -6px; left: -6px; border-top-width: 1px; border-left-width: 1px; }
-    .hud::after { top: -6px; right: -6px; border-top-width: 1px; border-right-width: 1px; }
-    .hud > span::before { bottom: -6px; left: -6px; border-bottom-width: 1px; border-left-width: 1px; }
-    .hud > span::after { bottom: -6px; right: -6px; border-bottom-width: 1px; border-right-width: 1px; }
+    .hud i { font-style: normal; color: var(--accent); margin: 0 10px; }
 
     .center {
       position: fixed;
@@ -135,8 +107,8 @@
     @keyframes blink { to { visibility: hidden; } }
 
     @media (max-width: 600px) {
-      .hud { font-size: 10px; }
-      .tr, .br { text-align: right; }
+      .hud { font-size: 10px; letter-spacing: 0.1em; }
+      .hud i { margin: 0 7px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -154,13 +126,7 @@
     <span class="wordmark">gioriva.com</span>
   </div>
 
-  <div class="hud" aria-hidden="true">
-    <span></span>
-    <div class="tl"><b id="uptime">00:00:00</b></div>
-    <div class="tr">45.8081° N <b>·</b> 9.0852° E</div>
-    <div class="bl">Como, IT <b>·</b> <span id="clock">--:--:--</span></div>
-    <div class="br"><span id="fps">60</span> fps <b>·</b> 2026</div>
-  </div>
+  <div class="hud" aria-hidden="true">45.8081° N 9.0852° E<i>·</i>Como, IT<i>·</i><span id="clock">--:--:--</span></div>
 
   <script>
     const canvas = document.getElementById('c');
@@ -184,7 +150,7 @@
     addEventListener('resize', resize);
 
     // camera fissa, leggermente dall'alto
-    const cam = { y: 0.6, f: 1.6 };
+    const cam = { y: 0.75, f: 1.55 };
     const TOUCH = matchMedia('(hover: none)').matches;
     const AMP = TOUCH ? 1.35 : 1;      // su touch onda più visibile
     let lastTouch = -1e9;              // ultimo tocco reale
@@ -223,24 +189,13 @@
     }
 
     const clock = document.getElementById('clock');
-    // cronometro di missione: parte al caricamento della pagina
-    const uptimeEl = document.getElementById('uptime');
-    const t0 = Date.now();
-    const pad = n => String(n).padStart(2, '0');
-    setInterval(() => {
-      const s = Math.floor((Date.now() - t0) / 1000);
-      uptimeEl.textContent = `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
-    }, 1000);
-    const fpsEl = document.getElementById('fps');
     const fmt = new Intl.DateTimeFormat('it-IT', {
       hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Rome'
     });
-    let lastT = 0, frames = 0, fpsT = 0;
+    let lastT = 0;
 
     function frame(t) {
       const dt = Math.min(100, t - lastT); lastT = t;
-      frames++; fpsT += dt;
-      if (fpsT > 1000) { fpsEl.textContent = frames; frames = 0; fpsT = 0; }
 
       autoPointer(t);
       if (!TOUCH || t - lastTouch < 3000) pointer.s *= 0.97;
@@ -254,12 +209,13 @@
 
       // disegno dal fondo verso il davanti
       for (let r = ROWS - 1; r >= 0; r--) {
-        const z = 1.0 + (r / ROWS) * 9;                // profondità 1 .. 10
+        const z = 0.6 + (r / ROWS) * 9.4;              // parte sotto il bordo inferiore, così non si stacca mai
         for (let c = 0; c < COLS; c++) {
           const x = ((c / (COLS - 1)) - 0.5) * XR;   // larghezza -XR/2 .. XR/2
 
           // superficie: due onde incrociate + un'increspatura dal cursore
-          const amp = (0.95 - (r / ROWS) * 0.6) * AMP; // il fondo si calma, così non si aggroviglia
+          const near = Math.min(1, (r / ROWS) * 3.5);   // le prime file restano piatte: il bordo inferiore non si scopre mai
+          const amp = (0.95 - (r / ROWS) * 0.6) * AMP * near; // il fondo si calma, così non si aggroviglia
           let y = (Math.sin(x * 0.32 + time * 1.4) * 0.16
                 + Math.sin(z * 0.55 - time * 1.1) * 0.14
                 + Math.sin((x + z) * 0.22 + time * 0.7) * 0.10) * amp;
@@ -285,7 +241,7 @@
 
           if (a < 0.04) continue;
           const idx = Math.min(LEVELS - 1, (a * LEVELS) | 0);
-          ctx.fillStyle = lift > 0.5 ? PAL_ACC[idx] : PAL_INK[idx];
+          ctx.fillStyle = lift > 0.42 ? PAL_ACC[idx] : PAL_INK[idx];
           ctx.fillRect(sx - size / 2, sy - size / 2, size, size);
         }
       }
